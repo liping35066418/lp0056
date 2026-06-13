@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>付费自习室数据分析平台</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="header-left">
+        <h1>📊 付费自习室数据分析平台</h1>
+      </div>
+      <div class="header-right">
+        <div class="date-range">
+          <label>开始日期:</label>
+          <input type="date" id="startDate">
+          <label>结束日期:</label>
+          <input type="date" id="endDate">
+          <button class="btn btn-primary" onclick="loadData()">查询</button>
+          <button class="btn btn-secondary" onclick="setQuickRange(7)">近7天</button>
+          <button class="btn btn-secondary" onclick="setQuickRange(30)">近30天</button>
+        </div>
+        <button class="btn btn-success" onclick="exportReport()">📥 导出报表</button>
+      </div>
+    </header>
+
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">数据概览</button>
+      <button class="tab-btn" data-tab="trend" onclick="switchTab('trend')">趋势分析</button>
+      <button class="tab-btn" data-tab="breakdown" onclick="switchTab('breakdown')">维度拆分</button>
+      <button class="tab-btn" data-tab="records" onclick="switchTab('records')">记录管理</button>
+      <button class="tab-btn" data-tab="operations" onclick="switchTab('operations')">业务操作</button>
+    </nav>
+
+    <main class="content">
+      <div class="tab-content active" id="tab-dashboard">
+        <div class="summary-cards">
+          <div class="card">
+            <div class="card-icon">👥</div>
+            <div class="card-info">
+              <div class="card-value" id="totalCheckIns">-</div>
+              <div class="card-label">总客流人次</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-icon">📅</div>
+            <div class="card-info">
+              <div class="card-value" id="avgDailyVisitors">-</div>
+              <div class="card-label">日均客流</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-icon">⏱️</div>
+            <div class="card-info">
+              <div class="card-value" id="avgDuration">-</div>
+              <div class="card-label">平均使用时长(分钟)</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-icon">💺</div>
+            <div class="card-info">
+              <div class="card-value" id="utilizationRate">-%</div>
+              <div class="card-label">座位使用率</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-icon">📆</div>
+            <div class="card-info">
+              <div class="card-value" id="totalReservations">-</div>
+              <div class="card-label">预约总数</div>
+            </div>
+          </div>
+          <div class="card warning">
+            <div class="card-icon">⚠️</div>
+            <div class="card-info">
+              <div class="card-value" id="abnormalCount">-</div>
+              <div class="card-label">异常离场</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-grid">
+          <div class="chart-card full">
+            <h3>每日客流趋势</h3>
+            <canvas id="dailyTrendChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-grid">
+          <div class="chart-card">
+            <h3>高峰时段分布</h3>
+            <canvas id="peakHoursChart"></canvas>
+          </div>
+          <div class="chart-card">
+            <h3>区域客流占比</h3>
+            <canvas id="areaPieChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-grid">
+          <div class="chart-card">
+            <h3>座位类型使用率对比</h3>
+            <canvas id="seatTypeChart"></canvas>
+          </div>
+          <div class="chart-card">
+            <h3>区域使用率对比</h3>
+            <canvas id="areaUtilChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-trend">
+        <div class="chart-card full">
+          <h3>每日客流与使用率趋势</h3>
+          <canvas id="trendDetailChart" height="100"></canvas>
+        </div>
+        <div class="chart-grid">
+          <div class="chart-card">
+            <h3>每周客流变化</h3>
+            <canvas id="weeklyChart"></canvas>
+          </div>
+          <div class="chart-card">
+            <h3>高峰时段热力分布</h3>
+            <div id="peakHeatmap" class="heatmap"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-breakdown">
+        <div class="chart-grid">
+          <div class="chart-card">
+            <h3>区域客流分布</h3>
+            <canvas id="areaBreakdownChart"></canvas>
+          </div>
+          <div class="chart-card">
+            <h3>座位类型客流分布</h3>
+            <canvas id="seatTypeBreakdownChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-grid">
+          <div class="chart-card">
+            <h3>区域使用率排名</h3>
+            <table class="data-table" id="areaTable">
+              <thead>
+                <tr><th>区域</th><th>座位数</th><th>客流人次</th><th>使用率</th><th>使用总时长</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="chart-card">
+            <h3>座位类型统计</h3>
+            <table class="data-table" id="seatTypeTable">
+              <thead>
+                <tr><th>座位类型</th><th>座位数</th><th>客流人次</th><th>使用率</th><th>使用总时长</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-records">
+        <div class="record-tabs">
+          <button class="record-tab-btn active" data-record="checkins" onclick="switchRecordTab('checkins')">签到记录</button>
+          <button class="record-tab-btn" data-record="abnormal" onclick="switchRecordTab('abnormal')">异常离场</button>
+          <button class="record-tab-btn" data-record="tempOcc" onclick="switchRecordTab('tempOcc')">临时占座</button>
+          <button class="record-tab-btn" data-record="corrections" onclick="switchRecordTab('corrections')">数据补录</button>
+          <button class="record-tab-btn" data-record="reservations" onclick="switchRecordTab('reservations')">预约记录</button>
+        </div>
+
+        <div class="record-content" id="record-checkins">
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr><th>座位号</th><th>区域</th><th>用户</th><th>签到时间</th><th>离场时间</th><th>时长(分)</th><th>来源</th><th>状态</th></tr>
+              </thead>
+              <tbody id="checkinTableBody"></tbody>
+            </table>
+          </div>
+          <div class="pagination" id="checkinPagination"></div>
+        </div>
+
+        <div class="record-content" id="record-abnormal">
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr><th>座位号</th><th>区域</th><th>用户</th><th>签到时间</th><th>离场时间</th><th>时长(分)</th><th>异常原因</th></tr>
+              </thead>
+              <tbody id="abnormalTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="record-content" id="record-tempOcc">
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr><th>座位号</th><th>区域</th><th>用户</th><th>开始时间</th><th>结束时间</th><th>状态</th></tr>
+              </thead>
+              <tbody id="tempOccTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="record-content" id="record-corrections">
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr><th>类型</th><th>目标ID</th><th>原始数据</th><th>修正数据</th><th>原因</th><th>操作人</th><th>时间</th></tr>
+              </thead>
+              <tbody id="correctionsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="record-content" id="record-reservations">
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr><th>座位号</th><th>区域</th><th>用户</th><th>预约开始</th><th>预约结束</th><th>状态</th></tr>
+              </thead>
+              <tbody id="reservationTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-operations">
+        <div class="operation-grid">
+          <div class="operation-card">
+            <h3>📝 到店签到</h3>
+            <div class="form-group">
+              <label>座位</label>
+              <select id="checkinSeat"></select>
+            </div>
+            <div class="form-group">
+              <label>姓名</label>
+              <input type="text" id="checkinName" placeholder="请输入姓名">
+            </div>
+            <div class="form-group">
+              <label>手机号</label>
+              <input type="text" id="checkinPhone" placeholder="请输入手机号">
+            </div>
+            <div class="form-group">
+              <label>来源</label>
+              <select id="checkinSource">
+                <option value="walk_in">散客</option>
+                <option value="reservation">预约</option>
+              </select>
+            </div>
+            <button class="btn btn-primary btn-block" onclick="doCheckIn()">签到</button>
+          </div>
+
+          <div class="operation-card">
+            <h3>🚪 离场登记</h3>
+            <div class="form-group">
+              <label>签到记录</label>
+              <select id="checkoutRecord"></select>
+            </div>
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="isAbnormal">
+                异常离场
+              </label>
+            </div>
+            <div class="form-group" id="abnormalReasonGroup" style="display:none;">
+              <label>异常原因</label>
+              <input type="text" id="abnormalReason" placeholder="请输入异常原因">
+            </div>
+            <button class="btn btn-primary btn-block" onclick="doCheckOut()">离场</button>
+          </div>
+
+          <div class="operation-card">
+            <h3>⏸️ 临时占座</h3>
+            <div class="form-group">
+              <label>座位</label>
+              <select id="tempOccSeat"></select>
+            </div>
+            <div class="form-group">
+              <label>用户姓名</label>
+              <input type="text" id="tempOccName" placeholder="请输入姓名">
+            </div>
+            <button class="btn btn-warning btn-block" onclick="startTempOcc()">开始临时占座</button>
+            <div style="margin-top:10px;">
+              <button class="btn btn-secondary btn-block" onclick="endTempOcc()">结束临时占座</button>
+            </div>
+          </div>
+
+          <div class="operation-card">
+            <h3>📅 预约管理</h3>
+            <div class="form-group">
+              <label>座位</label>
+              <select id="reservationSeat"></select>
+            </div>
+            <div class="form-group">
+              <label>姓名</label>
+              <input type="text" id="reservationName" placeholder="请输入姓名">
+            </div>
+            <div class="form-group">
+              <label>开始时间</label>
+              <input type="datetime-local" id="reservationStart">
+            </div>
+            <div class="form-group">
+              <label>结束时间</label>
+              <input type="datetime-local" id="reservationEnd">
+            </div>
+            <button class="btn btn-primary btn-block" onclick="createReservation()">创建预约</button>
+          </div>
+
+          <div class="operation-card full-width">
+            <h3>🔧 数据补录</h3>
+            <div class="form-row">
+              <div class="form-group">
+                <label>补录类型</label>
+                <select id="correctionType" onchange="onCorrectionTypeChange()">
+                  <option value="add_usage_record">补录使用记录</option>
+                  <option value="check_in_time">修正签到时间</option>
+                  <option value="check_out_time">修正离场时间</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>操作人</label>
+                <input type="text" id="correctionOperator" placeholder="管理员" value="管理员">
+              </div>
+              <div class="form-group">
+                <label>原因</label>
+                <input type="text" id="correctionReason" placeholder="补录原因">
+              </div>
+            </div>
+            <div class="form-row" id="addRecordForm">
+              <div class="form-group">
+                <label>座位</label>
+                <select id="correctionSeat"></select>
+              </div>
+              <div class="form-group">
+                <label>姓名</label>
+                <input type="text" id="correctionName" placeholder="姓名">
+              </div>
+              <div class="form-group">
+                <label>签到时间</label>
+                <input type="datetime-local" id="correctionCheckIn">
+              </div>
+              <div class="form-group">
+                <label>离场时间</label>
+                <input type="datetime-local" id="correctionCheckOut">
+              </div>
+            </div>
+            <div class="form-row" id="timeCorrectForm" style="display:none;">
+              <div class="form-group">
+                <label>目标记录ID</label>
+                <input type="number" id="correctionTargetId" placeholder="记录ID">
+              </div>
+              <div class="form-group">
+                <label>修正时间</label>
+                <input type="datetime-local" id="correctionTime">
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="submitCorrection()">提交补录</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

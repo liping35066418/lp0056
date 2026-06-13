@@ -1,0 +1,17 @@
+{
+  "name": "study-room-analytics",
+  "version": "1.0.0",
+  "description": "付费自习室数据分析平台",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js",
+    "seed": "node server/seed.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "better-sqlite3": "^9.2.2",
+    "cors": "^2.8.5",
+    "dayjs": "^1.11.10"
+  }
+}
