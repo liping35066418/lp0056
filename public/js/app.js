@@ -612,20 +612,30 @@ async function loadCorrections() {
   }
 }
 
+const reservationStatusMap = {
+  reserved: { text: '已预约', color: '#1890ff' },
+  completed: { text: '已完成', color: '#52c41a' },
+  cancelled: { text: '已取消', color: '#ff4d4f' },
+  expired: { text: '已过期', color: '#faad14' }
+};
+
 async function loadReservations() {
   try {
     const data = await fetchJSON(`${API_BASE}/reservations`);
     const tbody = document.getElementById('reservationTableBody');
-    tbody.innerHTML = data.map(item => `
+    tbody.innerHTML = data.map(item => {
+      const status = reservationStatusMap[item.status] || { text: item.status, color: '#999' };
+      return `
       <tr>
         <td>${item.seat_code}</td>
         <td>${item.area_name}</td>
         <td>${item.customer_name || '-'}</td>
         <td>${formatDateTime(item.reserve_start)}</td>
         <td>${formatDateTime(item.reserve_end)}</td>
-        <td><span style="color:#52c41a;">${item.status}</span></td>
+        <td><span style="color:${status.color};">${status.text}</span></td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
   } catch (err) {
     console.error(err);
   }
