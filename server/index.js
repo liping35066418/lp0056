@@ -402,16 +402,12 @@ app.get('/api/report/export', (req, res) => {
 });
 
 app.get('/api/check-ins', (req, res) => {
-  const { startDate, endDate, page = 1, pageSize = 20 } = req.query;
+  const { startDate, endDate, page = 1, pageSize = 20, source } = req.query;
   const range = analytics.getDateRange(startDate, endDate);
   const offset = (page - 1) * pageSize;
 
-  const total = db.prepare(`
-    SELECT COUNT(*) as count FROM check_ins 
-    WHERE check_in_time >= ? AND check_in_time <= ?
-  `).get(range.start, range.end).count;
-
-  const records = db.prepare(`
+  let countSQL = 'SELECT COUNT(*) as count FROM check_ins WHERE check_in_time >= ? AND check_in_time <= ?';
+  let listSQL = `
     SELECT ci.*, s.seat_code, a.name as area_name,
            CASE WHEN co.id IS NOT NULL THEN 1 ELSE 0 END as has_checked_out,
            co.check_out_time, co.duration_minutes, co.is_abnormal
@@ -420,9 +416,22 @@ app.get('/api/check-ins', (req, res) => {
     JOIN areas a ON s.area_id = a.id
     LEFT JOIN check_outs co ON ci.id = co.check_in_id
     WHERE ci.check_in_time >= ? AND ci.check_in_time <= ?
-    ORDER BY ci.check_in_time DESC
-    LIMIT ? OFFSET ?
-  `).all(range.start, range.end, parseInt(pageSize), offset);
+  `;
+  const countParams = [range.start, range.end];
+  const listParams = [range.start, range.end];
+
+  if (source && source !== 'all') {
+    countSQL += ' AND source = ?';
+    listSQL += ' AND ci.source = ?';
+    countParams.push(source);
+    listParams.push(source);
+  }
+
+  listSQL += ' ORDER BY ci.check_in_time DESC LIMIT ? OFFSET ?';
+  listParams.push(parseInt(pageSize), offset);
+
+  const total = db.prepare(countSQL).get(...countParams).count;
+  const records = db.prepare(listSQL).all(...listParams);
 
   res.json({
     total,

@@ -1,7 +1,14 @@
 const API_BASE = '/api';
 let charts = {};
 let currentCheckinPage = 1;
+let currentCheckinSource = 'all';
 const pageSize = 20;
+
+const sourceNameMap = {
+  walk_in: '散客',
+  reservation: '预约',
+  correction: '补录'
+};
 
 function showToast(message, type = 'success') {
   const toast = document.getElementById('toast');
@@ -508,6 +515,9 @@ function updateSeatTypeBreakdownChart(typeData) {
 async function loadCheckins() {
   const { startDate, endDate } = getDateRange();
   const params = new URLSearchParams({ startDate, endDate, page: currentCheckinPage, pageSize });
+  if (currentCheckinSource !== 'all') {
+    params.append('source', currentCheckinSource);
+  }
 
   try {
     const data = await fetchJSON(`${API_BASE}/check-ins?${params}`);
@@ -520,7 +530,7 @@ async function loadCheckins() {
         <td>${formatDateTime(item.check_in_time)}</td>
         <td>${item.has_checked_out ? formatDateTime(item.check_out_time) : '<span style="color:#52c41a;">使用中</span>'}</td>
         <td>${item.has_checked_out ? item.duration_minutes : '-'}</td>
-        <td>${item.source === 'reservation' ? '预约' : '散客'}</td>
+        <td>${sourceNameMap[item.source] || item.source}</td>
         <td>${item.is_abnormal ? '<span style="color:#ff4d4f;">异常</span>' : '<span style="color:#52c41a;">正常</span>'}</td>
       </tr>
     `).join('');
@@ -540,6 +550,12 @@ async function loadCheckins() {
 
 function changePage(page) {
   currentCheckinPage = page;
+  loadCheckins();
+}
+
+function changeCheckinSource(source) {
+  currentCheckinSource = source;
+  currentCheckinPage = 1;
   loadCheckins();
 }
 

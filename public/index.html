@@ -172,6 +172,15 @@
         </div>
 
         <div class="record-content" id="record-checkins">
+          <div class="filter-bar">
+            <label>来源：</label>
+            <select id="checkinSourceFilter" onchange="changeCheckinSource(this.value)">
+              <option value="all">全部</option>
+              <option value="walk_in">散客</option>
+              <option value="reservation">预约</option>
+              <option value="correction">补录</option>
+            </select>
+          </div>
           <div class="table-container">
             <table class="data-table">
               <thead>
